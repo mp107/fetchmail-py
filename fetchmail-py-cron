@@ -1,0 +1,1 @@
+* * * * * root python /opt/fetchmail-py/bin/fetchmail.py /var/roundcube/db/sqlite.db fetchmail >> /var/log/cron.log
