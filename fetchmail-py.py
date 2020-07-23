@@ -18,11 +18,19 @@ dovecot_deliver = '/usr/lib/dovecot/deliver'
 
 lock_file_path = run_dir + '/fetchmail-py-all.lock'
 
-# Functions
-def exit_me(status, lock = None):
-    if lock:
-        unlockfile(lock)
-    sys.exit(status)
+def connect_to_sqlite_db(dburi):
+    if sys.version_info >= (3, 0):
+        db = sqlite3.connect(dburi, uri=True)
+    else:
+        if not os.access(sqlite_file_path, os.R_OK | os.W_OK):
+            print('Error: DB file {} does not exist or is not writeable' \
+                .format(sqlite_file_path))
+            return None
+
+        # TODO - Better check as sqlite file may become unaccessible until now
+        db = sqlite3.connect(sqlite_file_path)
+    return db
+
 
 def lockfile(filename):
     # Source: https://stackoverflow.com/a/39097188
@@ -38,6 +46,11 @@ def lockfile(filename):
 def unlockfile(file):
     os.remove(lock_file_path)
     os.close(file)
+
+def exit_me(status, lock = None):
+    if lock:
+        unlockfile(lock)
+    sys.exit(status)
 
 # DB file path and DB name may be set also as command line arguments
 if (len(sys.argv) == 3):
@@ -60,32 +73,27 @@ try:
     # Connect to the DB
     dburi = 'file:{}?mode=rw'.format(sqlite_file_path)
 
-    if sys.version_info >= (3, 0):
-        db = sqlite3.connect(dburi, uri=True)
-    else:
-        if not os.access(sqlite_file_path, os.R_OK | os.W_OK):
-            print('Error: DB file {} does not exist or is not writeable' \
-                .format(sqlite_file_path))
+    with connect_to_sqlite_db(dburi) as db:
+
+        if not db:
             exit_me(1, lock)
 
-        # TODO - Better check as sqlite file may become unaccessible until now
-        db = sqlite3.connect(sqlite_file_path)
+        # Select only mailboxes for which time for update has come
+        sql_cond = "active = 1 AND strftime('%s', 'now') - strftime(date)"
 
-    # Select only mailboxes for which time for update has come
-    sql_cond = "active = 1 AND strftime('%s', 'now') - strftime(date)"
+        # Get mentioned mailboxes' details
+        sql = 'SELECT date,id,mailbox,src_server,src_auth,src_user,' \
+            'src_password,src_folder,fetchall,keep,protocol,mda,' \
+            'extra_options,usessl,sslcertck,sslcertpath,sslfingerprint ' \
+            'FROM fetchmail WHERE %s  > poll_time*60'
 
-    # Get mentioned mailboxes' details
-    sql = 'SELECT date,id,mailbox,src_server,src_auth,src_user,' \
-        'src_password,src_folder,fetchall,keep,protocol,mda,extra_options,' \
-        'usessl,sslcertck,sslcertpath,sslfingerprint ' \
-        'FROM fetchmail WHERE %s  > poll_time*60'
+        # Get row as dict, not tuple
+        # Source: https://stackoverflow.com/a/48789604
+        db.row_factory = lambda c, r: \
+            dict([(col[0], r[idx]) for idx, col in enumerate(c.description)])
 
-    # Get row as dict, not tuple
-    # Source: https://stackoverflow.com/a/48789604
-    db.row_factory = lambda c, r: \
-        dict([(col[0], r[idx]) for idx, col in enumerate(c.description)])
+        result = db.execute(sql % sql_cond)
 
-    result = db.execute(sql % sql_cond)
 
     # Run fetchmail separate for every mailbox
     # so that one failure will not abort all current updates
@@ -162,11 +170,13 @@ try:
             "date=strftime('%s', 'now') " \
             'WHERE id=' + '%d;' % row.get('id')
 
-        result = db.execute(sql)
-        db.commit()
+        with connect_to_sqlite_db(dburi) as db:
 
-    # Close DB connection
-    db.close()
+            if not db:
+                exit_me(1, lock)
+
+            result = db.execute(sql)
+            db.commit()
 
 except Exception as e:
     print('Exception level 1: ' + e.message)
