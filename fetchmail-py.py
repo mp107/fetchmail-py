@@ -112,12 +112,7 @@ try:
             if row.get('src_folder'):
                 cmd += " folder '%s'" % row.get('src_folder')
 
-            if row.get('mda'):
-                if row.get('mda') == 'dovecot':
-                    cmd += ' mda "%s -d %s" ' \
-                        % (dovecot_deliver, row.get('mailbox'))
-                else:
-                    cmd += ' mda %s' % row.get('mda')
+            cmd += ' mda "%s -d %s" ' % (dovecot_deliver, row.get('mailbox'))
 
             cmd += " is '%s' here" % row.get('mailbox')
 
