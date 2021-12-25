@@ -106,7 +106,7 @@ try:
 
             cmd = "user '%s' there with password '%s'" \
                 % (row.get('src_user'), \
-                    base64.b64decode(row.get('src_password')))
+                    base64.b64decode(row.get('src_password')).decode('utf-8'))
 
             # Construct fetchmail configuration file content
             if row.get('src_folder'):
@@ -144,7 +144,7 @@ try:
             # Create temporary fetchmail configuration file
             file_handler = tempfile.NamedTemporaryFile(delete=False)
             filename = file_handler.name
-            file_handler.write(text)
+            file_handler.write(text.encode())
             file_handler.close()
 
             # Run fetchmail
@@ -157,7 +157,12 @@ try:
             os.remove(filename)
 
         except Exception as e:
-            output = 'Exception level 2: ' + e.message
+            emsg = ''
+            if hasattr(e, 'message'):
+                emsg = e.message
+            elif hasattr(e, '__traceback__'): 
+                emsg = e.__traceback__
+            output = 'Exception level 2: ' + str(emsg)
 
         # Update fetching status
         sql = 'UPDATE fetchmail ' \
@@ -174,7 +179,12 @@ try:
             db.commit()
 
 except Exception as e:
-    print('Exception level 1: ' + e.message)
+    emsg = ''
+    if hasattr(e, 'message'):
+        emsg = e.message
+    elif hasattr(e, '__traceback__'): 
+        emsg = e.__traceback__
+    print('Exception level 1: ' + str(emsg))
 
 # Unlock and exit
 exit_me(0, lock)
