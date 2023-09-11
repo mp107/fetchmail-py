@@ -139,6 +139,8 @@ try:
             if row.get('src_port'):
                 text += ' service %s' % row.get('src_port')
 
+            text += ' bad-header accept'
+
             text += '\n  %s' % cmd
 
             # Create temporary fetchmail configuration file
