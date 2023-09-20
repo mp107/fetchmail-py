@@ -1,7 +1,7 @@
 # fetchmail-py
 Partial [fetchmail.pl](https://github.com/postfixadmin/postfixadmin/blob/master/ADDITIONS/fetchmail.pl) reimplementation in Python language, using sqlite database. It uses fetchmail package to periodically synchronize e-mails from external mailboxes into currently selected mailbox.
 
-It may be used for example with [fetchmail plugin for RoundCube](https://plugins.roundcube.net/packages/pf4public/fetchmail).
+It may be used for example with [fetchmail plugin for RoundCube](https://plugins.roundcube.net/#/packages/pf4public/fetchmail).
 
 ### Set up
 The script requires sqlite database to be initialized with [init_sqlite.sql](init_sqlite.sql) script.
